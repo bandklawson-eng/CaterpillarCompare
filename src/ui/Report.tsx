@@ -1,6 +1,6 @@
 // Print layout. "Create PDF" renders this and opens the browser's print dialog, where the
 // salesperson picks "Save as PDF". The charts are SVG, so the PDF stays sharp at any zoom.
-import { FAMILY_LABEL, type Family } from '../data';
+import { FAMILY_ART, FAMILY_LABEL, type Family } from '../data';
 import type { Result, Settings } from '../engine/model';
 import { Assumptions, BreakEven, Costs, Fuel, Glance, Productivity, SpecsTable } from './sections';
 
@@ -11,6 +11,8 @@ export function Report(props: { results: Result[]; s: Settings; family: Family; 
   return (
     <div class="report">
       <div class="cover">
+        <img class="cover-art" src={FAMILY_ART[props.family]} alt="" />
+        <img class="cover-logo" src="./art/program.webp" alt="CatSize" />
         <div class="cover-kicker">EQUIPMENT COMPARISON · {FAMILY_LABEL[props.family].toUpperCase()}</div>
         <h1>{names}</h1>
         <div class="cover-sub">Productivity, fuel consumption and repair-cost comparison</div>

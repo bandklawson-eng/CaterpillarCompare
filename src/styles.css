@@ -34,18 +34,17 @@ h4 { font-size: 0.9rem; margin: 18px 0 6px; color: var(--ink-2); font-weight: 60
   display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
   padding: 10px 18px; background: var(--dark); color: #fff;
 }
-.brand { display: flex; align-items: center; gap: 10px; }
-.brand svg { width: 34px; height: 34px; fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; }
-.brand svg circle { fill: #fff; stroke: none; }
-.brand b { display: block; font-size: 1.05rem; }
-.brand span { font-size: 0.78rem; color: #b9c5d2; }
+.brand { display: flex; align-items: center; }
+.brand img { height: 44px; width: auto; display: block; }
 .family-tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.08); padding: 4px; border-radius: 10px; }
-.family-tabs button { border: 0; background: transparent; color: #dbe3ea; padding: 7px 16px; border-radius: 7px; font-weight: 600; }
+.family-tabs button { border: 0; background: transparent; color: #dbe3ea; padding: 4px 14px 4px 8px; border-radius: 7px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 8px; }
+.family-tabs button img { height: 30px; width: auto; }
 .family-tabs button.on { background: #fff; color: var(--dark); }
 .top-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 .prepared { width: 210px; padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #fff; }
 .prepared::placeholder { color: #a9b6c3; }
-.primary { background: var(--accent); color: #fff; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: 700; }
+.primary { background: #fec203; color: #1b1b1b; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: 700; }
 .primary:disabled { opacity: 0.5; cursor: default; }
 
 /* ---------- layout ---------- */
@@ -64,6 +63,11 @@ details.panel > summary { list-style: none; cursor: pointer; display: flex; just
 details.panel > summary::after { content: '▾'; color: var(--ink-3); }
 details.panel:not([open]) > summary::after { content: '▸'; }
 details.panel > summary::-webkit-details-marker { display: none; }
+.family-banner { display: flex; align-items: center; gap: 12px; margin: -2px 0 10px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+.family-banner img { width: 96px; height: auto; }
+.family-banner b { display: block; font-size: 1.15rem; color: var(--dark); }
+.family-banner span { font-size: 0.8rem; color: var(--ink-3); }
+.empty-art { width: min(260px, 60%); height: auto; margin-bottom: 8px; }
 .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .count { color: var(--ink-3); font-weight: 500; font-size: 0.85rem; }
 .link { border: 0; background: none; color: var(--blue); padding: 0; font-size: 0.85rem; }
@@ -178,8 +182,11 @@ table.data td.best { font-weight: 800; color: var(--good); }
   :root { font-size: 10.5pt; background: #fff; }
   .app { display: none !important; }
   .report { display: block; color: var(--ink); }
-  .cover { background: var(--dark); color: #fff; padding: 36px 32px 30px; border-bottom: 6px solid var(--accent); margin-bottom: 18px;
+  .cover { position: relative; background: var(--dark); color: #fff; padding: 28px 32px 30px; border-bottom: 6px solid #fec203; margin-bottom: 18px;
     -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .cover-logo { height: 46px; width: auto; display: block; margin-bottom: 16px; }
+  .cover-art { position: absolute; right: 24px; bottom: 18px; width: 170px; height: auto; }
+  .cover h1, .cover-sub, .cover-meta { max-width: 68%; }
   .cover-kicker { color: #9fb3c8; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.04em; }
   .cover h1 { font-size: 2rem; margin: 10px 0 6px; }
   .cover-sub { font-size: 1.1rem; color: #e4ebf2; }
@@ -200,4 +207,11 @@ table.data td.best { font-weight: 800; color: var(--good); }
   .report .metric.strong .m-value { font-size: 1.05rem; }
   .report .breakeven-box { margin-top: 10px; padding: 10px 12px; }
   .report .step-num { font-size: 1.25rem; }
+}
+
+@media screen and (max-width: 560px) {
+  .family-tabs { width: 100%; }
+  .family-tabs button { flex: 1; flex-direction: column; gap: 2px; padding: 6px 4px; font-size: 0.85rem; }
+  .family-tabs button img { height: 34px; }
+  .brand img { height: 38px; }
 }

@@ -1,5 +1,5 @@
 import { useEffect } from 'preact/hooks';
-import { FAMILY_LABEL } from '../data';
+import { FAMILY_ART, FAMILY_LABEL } from '../data';
 import { family, preparedFor, printing, results, settings } from '../state';
 import { CostEditor, Conditions, FamilyTabs, ModelPicker } from './Sidebar';
 import { Assumptions, BreakEven, Costs, Fuel, Glance, Productivity, Section, SpecsTable } from './sections';
@@ -32,11 +32,7 @@ export function App() {
       <div class="app">
         <header class="top">
           <div class="brand">
-            <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="17" width="28" height="9" rx="4.5" /><path d="M7 17V9h11l5 8" /><circle cx="8" cy="21.5" r="2" /><circle cx="16" cy="21.5" r="2" /><circle cx="24" cy="21.5" r="2" /></svg>
-            <div>
-              <b>Size Compare</b>
-              <span>Cat dozers · haulers · excavators</span>
-            </div>
+            <img src="./art/program.webp" alt="CatSize" width="140" height="44" />
           </div>
           <FamilyTabs />
           <div class="top-actions">
@@ -54,6 +50,7 @@ export function App() {
           <main class="main">
             {!rs.length ? (
               <div class="empty">
+                <img src={FAMILY_ART[f]} alt="" class="empty-art" />
                 <h2>Pick {FAMILY_LABEL[f].toLowerCase()} to compare</h2>
                 <p>Choose up to four models from the list. The comparison updates as you change models, job conditions or prices.</p>
               </div>

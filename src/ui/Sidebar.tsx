@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { FAMILY_LABEL, isCurrent, sizeClass, sizeKey, yearsLabel, type Family, type Machine } from '../data';
+import { FAMILY_ART, FAMILY_LABEL, isCurrent, sizeClass, sizeKey, yearsLabel, type Family, type Machine } from '../data';
 import { defaultCosts, type CostInputs, type Settings } from '../engine/model';
 import {
   available, clearSelection, costsFor, family, MAX_MODELS, overrides, resetOverrides, selected, selection, setOverride,
@@ -12,7 +12,7 @@ export function FamilyTabs() {
     <div class="family-tabs" role="tablist" aria-label="Equipment line">
       {(Object.keys(FAMILY_LABEL) as Family[]).map((f) => (
         <button key={f} role="tab" aria-selected={family.value === f} class={family.value === f ? 'on' : ''}
-          onClick={() => { family.value = f; }}>{FAMILY_LABEL[f]}</button>
+          onClick={() => { family.value = f; }}><img src={FAMILY_ART[f]} alt="" />{FAMILY_LABEL[f]}</button>
       ))}
     </div>
   );
@@ -35,6 +35,10 @@ export function ModelPicker() {
   const full = sel.length >= MAX_MODELS;
   return (
     <div class="panel">
+      <div class="family-banner">
+        <img src={FAMILY_ART[family.value]} alt="" />
+        <div><b>{FAMILY_LABEL[family.value]}</b><span>{available.value.length} models, 2016 to today</span></div>
+      </div>
       <div class="panel-head">
         <h3>Models <span class="count">{sel.length}/{MAX_MODELS}</span></h3>
         {sel.length > 0 && <button class="link" onClick={clearSelection}>Clear</button>}

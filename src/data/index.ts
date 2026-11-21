@@ -18,6 +18,13 @@ export const FAMILY_LABEL: Record<Family, string> = {
   excavator: 'Excavators',
 };
 
+/** Category artwork (public/art), relative so it works on GitHub Pages. */
+export const FAMILY_ART: Record<Family, string> = {
+  dozer: './art/dozer.webp',
+  hauler: './art/hauler.webp',
+  excavator: './art/excavator.webp',
+};
+
 export const UNIT_LABEL: Record<Family, string> = {
   dozer: 'yd³',
   hauler: 'tons',

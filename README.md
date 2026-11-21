@@ -1,4 +1,4 @@
-# Size Compare – Cat dozers, haulers and excavators
+# CatSize – Cat dozers, haulers and excavators
 
 A web app for helping a customer decide when to move **up or down a size** in Caterpillar's
 equipment lines. Pick one line (dozers, haulers or excavators), choose up to four models, set the
@@ -94,6 +94,10 @@ npm test          # data and model checks
 npm run build     # production build into dist/
 npm run preview   # serve the production build
 ```
+
+Artwork lives in `public/art` (splash, header logo and one picture per equipment line) and
+`public/icons` (home-screen icons). The splash screen and its 3-second loading bar are in
+`index.html`; change `DURATION` there to make it longer or shorter.
 
 It is a static site (Vite + Preact + TypeScript, no server). After the first visit it works offline
 and can be installed to a phone, tablet or desktop home screen.
