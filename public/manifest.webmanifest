@@ -1,0 +1,12 @@
+{
+  "name": "Size Compare – Cat dozers, haulers, excavators",
+  "short_name": "Size Compare",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f5f2",
+  "theme_color": "#1f2a36",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
