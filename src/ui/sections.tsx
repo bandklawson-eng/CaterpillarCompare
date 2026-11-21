@@ -1,9 +1,10 @@
 import type { ComponentChildren } from 'preact';
 import { SOURCES, UNIT_LABEL, yearsLabel, type Family } from '../data';
 import {
-  allInUnitCost, cheapestBands, COST_KEYS, evaluate, fuelBurn, haulCycle, production, repairTotal, sizeSteps,
+  allInUnitCost, cheapestBands, COST_KEYS, evaluate, fleetProduction, fuelBurn, haulCycle, repairTotal, sizeSteps,
   SWEEP, VOLUME_RANGE, type Result, type Settings, type Step,
 } from '../engine/model';
+import { FleetIcons, FleetPanel, QtyStepper, fleetName } from './fleet';
 import { GroupedBars, LineChart, StackedBars } from './charts';
 import { SPEC_ROWS } from './specRows';
 import { colorOf, money, money2, n0, n1, n2, PARTS, pct, times, vol } from './format';
@@ -43,11 +44,13 @@ export function Glance({ results, s, family }: P) {
       <div class="glance-cards" style={{ gridTemplateColumns: `repeat(${results.length}, minmax(0, 1fr))` }}>
         {results.map((r) => (
           <div class="gcard" key={r.m.id} style={{ borderTopColor: colorOf(r.m.id) }}>
+            <FleetIcons r={r} all={results} family={family} />
             <div class="gcard-head">
-              <b>{r.m.name}</b>
+              <b>{fleetName(r)}</b>
               <span>{yearsLabel(r.m)}</span>
               {r === cheapest && results.length > 1 && <em class="pill good">Lowest cost {perUnit(family)}</em>}
             </div>
+            <QtyStepper r={r} />
             <Metric label={`Production (${u}/h)`} value={n0(r.prod)} rel={r === base ? 'baseline' : times(r.prod / base.prod)} />
             <Metric label="Fuel burn (gal/h)" value={n1(r.fuelH)} rel={r === base ? 'baseline' : times(r.fuelH / base.fuelH)} />
             <Metric label={`Fuel ${per1000(family)}`} value={`${n1(r.fuelPerUnit * 1000)} gal`} rel={r === base ? 'baseline' : pct(r.fuelPerUnit / base.fuelPerUnit - 1)} />
@@ -57,7 +60,9 @@ export function Glance({ results, s, family }: P) {
         ))}
       </div>
       <p class="note">Base case: {conditionText(family, s)}, {s.load === 'med' ? 'medium' : s.load} load, {s.skill} operator,
-        {' '}{s.jobMinPerHour}-minute hour.<span class="ui-only"> Change these under <b>Job conditions</b>.</span></p>
+        {' '}{s.jobMinPerHour}-minute hour. Figures are for the whole fleet.<span class="ui-only"> Change these under <b>Job conditions</b>.</span></p>
+
+      <FleetPanel results={results} s={s} family={family} />
 
       {results.length > 1 && (
         <div class="breakeven-box">
@@ -96,26 +101,26 @@ function StepCard({ st, family }: { st: Step; family: Family }) {
   return (
     <div class="step">
       <div class="step-models">
-        <span style={{ color: colorOf(st.from.m.id) }}>■</span> {st.from.m.name}
+        <span style={{ color: colorOf(st.from.m.id) }}>■</span> {fleetName(st.from)}
         <span class="arrow">→</span>
-        <span style={{ color: colorOf(st.to.m.id) }}>■</span> {st.to.m.name}
+        <span style={{ color: colorOf(st.to.m.id) }}>■</span> {fleetName(st.to)}
       </div>
       {st.volume === null ? (
         <>
           <div class="step-num muted">Not cheaper</div>
-          <p>The {st.to.m.name} costs more {perUnit(family)} than the {st.from.m.name} under these conditions at any job size. Move up only when the
-            job needs its {CAPABILITY[family]}.</p>
+          <p>{fleetName(st.to)} costs more {perUnit(family)} than {fleetName(st.from)} under these conditions at any job size. Move up only when the
+            job needs the bigger machine's {CAPABILITY[family]}.</p>
         </>
       ) : st.volume === 0 ? (
         <>
           <div class="step-num">Any job size</div>
-          <p>The {st.to.m.name} is cheaper {perUnit(family)} and costs no more to move.</p>
+          <p>{fleetName(st.to)} is cheaper {perUnit(family)} and costs no more to move.</p>
         </>
       ) : (
         <>
           <div class="step-num">{vol(st.volume)} {u}</div>
-          <p>Above about <b>{n0(st.volume)} {u}</b> per job the {st.to.m.name} is cheaper; it saves {Math.round(saving * 100)}% {perUnit(family)} once
-            its higher mobilization ({money(st.to.costs.mobCost)} vs {money(st.from.costs.mobCost)}) is paid off.</p>
+          <p>Above about <b>{n0(st.volume)} {u}</b> per job {fleetName(st.to)} is cheaper; it saves {Math.round(saving * 100)}% {perUnit(family)} once
+            its higher moving cost ({money(st.to.mobCost)} vs {money(st.from.mobCost)}) is paid off.</p>
         </>
       )}
     </div>
@@ -134,9 +139,9 @@ export function BandStrip({ bands, lo, hi, unit }: { bands: ReturnType<typeof ch
           const x0 = x(b.from), x1 = i + 1 < bands.length ? x(bands[i + 1].from) : x(hi);
           return (
             <g key={i}>
-              <title>{`${b.r.m.name}: ${vol(b.from)}–${vol(i + 1 < bands.length ? bands[i + 1].from : hi)} ${unit}`}</title>
+              <title>{`${fleetName(b.r)}: ${vol(b.from)}–${vol(i + 1 < bands.length ? bands[i + 1].from : hi)} ${unit}`}</title>
               <rect x={x0} y={4} width={Math.max(0, x1 - x0 - 2)} height={26} rx="3" fill={colorOf(b.r.m.id)} />
-              {x1 - x0 > 46 && <text x={(x0 + x1) / 2} y={21} class="band-label" text-anchor="middle">{b.r.m.name}</text>}
+              {x1 - x0 > 46 && <text x={(x0 + x1) / 2} y={21} class="band-label" text-anchor="middle">{fleetName(b.r)}</text>}
             </g>
           );
         })}
@@ -156,13 +161,13 @@ function bottomLine(bands: ReturnType<typeof cheapestBands>, family: Family, res
   const u = UNIT_LABEL[family];
   const parts = bands.map((b, i) => {
     const next = bands[i + 1];
-    if (i === 0 && next) return `the ${b.r.m.name} is cheapest below about ${vol(next.from)} ${u} per job`;
-    if (next) return `the ${b.r.m.name} from ${vol(b.from)} to ${vol(next.from)} ${u}`;
-    return bands.length === 1 ? `the ${b.r.m.name} is cheapest at every job size shown` : `the ${b.r.m.name} above ${vol(b.from)} ${u}`;
+    if (i === 0 && next) return `${fleetName(b.r)} is cheapest below about ${vol(next.from)} ${u} per job`;
+    if (next) return `${fleetName(b.r)} from ${vol(b.from)} to ${vol(next.from)} ${u}`;
+    return bands.length === 1 ? `${fleetName(b.r)} is cheapest at every job size shown` : `${fleetName(b.r)} above ${vol(b.from)} ${u}`;
   });
-  const never = results.filter((r) => !bands.some((b) => b.r === r)).map((r) => r.m.name);
+  const never = results.filter((r) => !bands.some((b) => b.r === r)).map((r) => fleetName(r));
   let text = `Bottom line: ${parts.join('; ')}.`;
-  if (never.length) text += ` The ${never.join(' and ')} ${never.length > 1 ? 'are' : 'is'} never the lowest-cost choice under these conditions.`;
+  if (never.length) text += ` ${never.join(' and ')} ${never.length > 1 ? 'are' : 'is'} never the lowest-cost choice under these conditions.`;
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
@@ -175,6 +180,7 @@ export function SpecsTable({ results, family }: P) {
           <tr><th>Specification</th>{results.map((r) => <th key={r.m.id}><span class="sw" style={{ background: colorOf(r.m.id) }} />{r.m.name}</th>)}</tr>
         </thead>
         <tbody>
+          <tr><th>Machines in fleet</th>{results.map((r) => <td key={r.m.id}><b>{r.qty}</b></td>)}</tr>
           {SPEC_ROWS[family].map((row) => (
             <tr key={row.label}><th>{row.label}</th>{results.map((r) => <td key={r.m.id}>{row.get(r.m)}</td>)}</tr>
           ))}
@@ -198,7 +204,7 @@ export function SpecsTable({ results, family }: P) {
 function sweepSeries(results: Result[], s: Settings, f: Family, y: (r: Result, v: number) => number) {
   const sw = SWEEP[f];
   return results.map((r) => ({
-    id: r.m.id, name: r.m.name, color: colorOf(r.m.id),
+    id: r.m.id, name: fleetName(r), color: colorOf(r.m.id),
     points: sw.values.map((v) => [v, y(r, v)] as [number, number]),
   }));
 }
@@ -213,14 +219,14 @@ export function Productivity({ results, s, family }: P) {
   const base = results[0];
   return (
     <>
-      <LineChart series={sweepSeries(results, s, family, (r, v) => production(r.m, s, v))}
+      <LineChart series={sweepSeries(results, s, family, (r, v) => fleetProduction(r, s, v))}
         xLabel={`${sw.label} (${sw.unit})`} yLabel={`Production (${u} per hour)`} marker={cur} fmtY={n0} />
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th>{sw.label}</th>{results.map((r) => <th key={r.m.id}>{r.m.name}</th>)}{results.length > 1 && <th>Largest ÷ smallest</th>}</tr></thead>
+          <thead><tr><th>{sw.label}</th>{results.map((r) => <th key={r.m.id}>{fleetName(r)}</th>)}{results.length > 1 && <th>Largest ÷ smallest</th>}</tr></thead>
           <tbody>
             {pts.map((v) => {
-              const vals = results.map((r) => production(r.m, s, v));
+              const vals = results.map((r) => fleetProduction(r, s, v));
               return (
                 <tr key={v}><th>{v} {sw.unit}</th>{vals.map((p, i) => <td key={i}>{n0(p)}</td>)}
                   {results.length > 1 && <td>{times(vals[vals.length - 1] / vals[0])}</td>}</tr>
@@ -232,8 +238,8 @@ export function Productivity({ results, s, family }: P) {
       {family === 'hauler' && <HaulDetail results={results} s={s} />}
       <p class="method">{METHOD[family]}</p>
       {results.length > 1 && (
-        <p>At the current conditions the {results[results.length - 1].m.name} moves {times(results[results.length - 1].prod / base.prod)} as much
-          material per hour as the {base.m.name}.</p>
+        <p>At the current conditions {fleetName(results[results.length - 1])} moves {times(results[results.length - 1].prod / base.prod)} as much
+          material per hour as {fleetName(base)}.</p>
       )}
     </>
   );
@@ -249,7 +255,7 @@ function HaulDetail({ results, s }: { results: Result[]; s: Settings }) {
   return (
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Cycle at {s.haulMiles} mi, {s.haulGradePct}% grade</th>{results.map((r) => <th key={r.m.id}>{r.m.name}</th>)}</tr></thead>
+        <thead><tr><th>Cycle per truck at {s.haulMiles} mi, {s.haulGradePct}% grade</th>{results.map((r) => <th key={r.m.id}>{r.m.name}</th>)}</tr></thead>
         <tbody>
           {(() => {
             const c = results.map((r) => (r.m.family === 'hauler' ? haulCycle(r.m, s, s.haulMiles) : null));
@@ -277,18 +283,18 @@ export function Fuel({ results, s, family }: P) {
   return (
     <>
       <GroupedBars categories={['Low load', 'Medium load', 'High load']}
-        series={results.map((r) => ({ id: r.m.id, name: r.m.name + (r.fuelEstimated ? ' (est.)' : ''), color: colorOf(r.m.id), values: [...fuelBurn(r.m).burn] }))}
-        yLabel="US gal per hour" fmt={n1} />
-      <LineChart series={sweepSeries(results, s, family, (r, v) => (r.fuelH / production(r.m, s, v)) * 1000)}
+        series={results.map((r) => ({ id: r.m.id, name: fleetName(r) + (r.fuelEstimated ? ' (est.)' : ''), color: colorOf(r.m.id), values: fuelBurn(r.m).burn.map((g) => g * r.qty) }))}
+        yLabel="US gal per hour (whole fleet)" fmt={n1} />
+      <LineChart series={sweepSeries(results, s, family, (r, v) => (r.fuelH / fleetProduction(r, s, v)) * 1000)}
         xLabel={`${sw.label} (${sw.unit})`} yLabel={`Gallons ${per1000(family)}`} marker={s[sw.key] as number} fmtY={n1} />
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th>Fuel</th>{results.map((r) => <th key={r.m.id}>{r.m.name}</th>)}</tr></thead>
+          <thead><tr><th>Fuel</th>{results.map((r) => <th key={r.m.id}>{fleetName(r)}</th>)}</tr></thead>
           <tbody>
-            <tr><th>Low / medium / high (gal/h)</th>{results.map((r) => <td key={r.m.id}>{fuelBurn(r.m).burn.map(n1).join(' / ')}{r.fuelEstimated ? ' est.' : ''}</td>)}</tr>
-            <tr><th>Selected load (gal/h)</th>{results.map((r) => <td key={r.m.id}>{n1(r.fuelH)}</td>)}</tr>
+            <tr><th>Per machine, low / medium / high (gal/h)</th>{results.map((r) => <td key={r.m.id}>{fuelBurn(r.m).burn.map(n1).join(' / ')}{r.fuelEstimated ? ' est.' : ''}</td>)}</tr>
+            <tr><th>Whole fleet, selected load (gal/h)</th>{results.map((r) => <td key={r.m.id}>{n1(r.fuelH)}</td>)}</tr>
             <tr><th>Gallons {per1000(family)}</th>{results.map((r) => <td key={r.m.id}>{n1(r.fuelPerUnit * 1000)}</td>)}</tr>
-            <tr><th>vs {base.m.name}</th>{results.map((r) => <td key={r.m.id}>{r === base ? '—' : pct(r.fuelPerUnit / base.fuelPerUnit - 1)}</td>)}</tr>
+            <tr><th>vs {fleetName(base)}</th>{results.map((r) => <td key={r.m.id}>{r === base ? '—' : pct(r.fuelPerUnit / base.fuelPerUnit - 1)}</td>)}</tr>
             <tr><th>Fuel + DEF cost {perUnit(family)}</th>{results.map((r) => <td key={r.m.id}>{money2(r.breakdown['Fuel + DEF'] / r.prod)}</td>)}</tr>
           </tbody>
         </table>
@@ -305,26 +311,28 @@ export function Costs({ results, s, family }: P) {
   const sw = SWEEP[family];
   return (
     <>
-      <StackedBars fmt={money} xLabel="Estimated owning + operating cost, $ per hour"
-        rows={results.map((r) => ({ id: r.m.id, name: r.m.name, parts: COST_KEYS.map((k, i) => ({ key: k, value: r.breakdown[k], color: PARTS[i] })) }))} />
+      <StackedBars fmt={money} xLabel="Estimated owning + operating cost of the whole fleet, $ per hour"
+        rows={results.map((r) => ({ id: r.m.id, name: fleetName(r), parts: COST_KEYS.map((k, i) => ({ key: k, value: r.breakdown[k], color: PARTS[i] })) }))} />
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th>$ per hour</th>{results.map((r) => <th key={r.m.id}>{r.m.name}</th>)}</tr></thead>
+          <thead><tr><th>$ per hour, whole fleet</th>{results.map((r) => <th key={r.m.id}>{fleetName(r)}</th>)}</tr></thead>
           <tbody>
             {COST_KEYS.map((k) => <tr key={k}><th>{k}</th>{results.map((r) => <td key={r.m.id}>{money2(r.breakdown[k])}</td>)}</tr>)}
             <tr class="total"><th>Total owning + operating</th>{results.map((r) => <td key={r.m.id}>{money2(r.costH)}</td>)}</tr>
-            <tr><th>Repair & maintenance subtotal</th>{results.map((r) => <td key={r.m.id}>{money2(repairTotal(r.breakdown))}</td>)}</tr>
+            <tr><th>Repair, maintenance & support subtotal</th>{results.map((r) => <td key={r.m.id}>{money2(repairTotal(r.breakdown))}</td>)}</tr>
             <tr><th>Production ({UNIT_LABEL[family]}/h)</th>{results.map((r) => <td key={r.m.id}>{n0(r.prod)}</td>)}</tr>
             <tr class="total"><th>Cost {perUnit(family)}</th>{results.map((r) => <td key={r.m.id}>{money2(r.unitCost)}</td>)}</tr>
-            <tr><th>Repair & maintenance {per1000(family)}</th>{results.map((r) => <td key={r.m.id}>{money(repairTotal(r.breakdown) / r.prod * 1000)}</td>)}</tr>
+            <tr><th>Repair, maintenance & support {per1000(family)}</th>{results.map((r) => <td key={r.m.id}>{money(repairTotal(r.breakdown) / r.prod * 1000)}</td>)}</tr>
           </tbody>
         </table>
       </div>
-      <LineChart series={sweepSeries(results, s, family, (r, v) => evaluate(r.m, withSweep(s, family, v), r.costs).unitCost)}
+      <LineChart series={sweepSeries(results, s, family, (r, v) => evaluate(r.m, withSweep(s, family, v), r.costs, r.qty).unitCost)}
         xLabel={`${sw.label} (${sw.unit})`} yLabel={`$ ${perUnit(family)}`} marker={s[sw.key] as number} fmtY={money2} />
       <p class="method">Repair reserve is a share of purchase price spread over the ownership period. Undercarriage (tracked machines) and tires
         (trucks) follow the Cat Performance Handbook approach, where ground conditions (impact, abrasion) matter more than the model:
-        severe conditions roughly double the moderate figure. Every price and rate can be changed under <b>Prices & costs</b>.</p>
+        severe conditions roughly double the moderate figure. Support & servicing is a fixed amount per machine for service-truck visits,
+        fueling, preventive-maintenance labor and admin, so it grows with the number of machines, not their size.
+        <span class="ui-only"> Every price and rate can be changed under <b>Prices & costs</b>.</span></p>
     </>
   );
 }
@@ -340,21 +348,21 @@ export function BreakEven({ results, family }: P) {
   const table = family === 'hauler' ? [50_000, 250_000, 1_000_000, 5_000_000] : [10_000, 50_000, 100_000, 250_000, 1_000_000];
   return (
     <>
-      <LineChart xLog series={results.map((r) => ({ id: r.m.id, name: r.m.name, color: colorOf(r.m.id),
+      <LineChart xLog series={results.map((r) => ({ id: r.m.id, name: fleetName(r), color: colorOf(r.m.id),
         points: vols.map((v) => [v, allInUnitCost(r, v)] as [number, number]) }))}
         xLabel={`Job size (${u}), log scale`} yLabel={`All-in $ ${perUnit(family)}`} yMin={0} yMax={minAtHi * 3.2}
         fmtY={money2} fmtX={vol}
-        vlines={steps.map((st) => ({ x: st.volume!, label: `${st.from.m.name}→${st.to.m.name}: ${vol(st.volume!)}` }))} />
+        vlines={steps.map((st) => ({ x: st.volume!, label: `${fleetName(st.from)}→${fleetName(st.to)}: ${vol(st.volume!)}` }))} />
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th>All-in cost {perUnit(family)} for a job of…</th>{results.map((r) => <th key={r.m.id}>{r.m.name}</th>)}</tr></thead>
+          <thead><tr><th>All-in cost {perUnit(family)} for a job of…</th>{results.map((r) => <th key={r.m.id}>{fleetName(r)}</th>)}</tr></thead>
           <tbody>
             {table.map((v) => {
               const vals = results.map((r) => allInUnitCost(r, v));
               const best = Math.min(...vals);
               return <tr key={v}><th>{n0(v)} {u}</th>{vals.map((x, i) => <td key={i} class={x === best ? 'best' : ''}>{money2(x)}</td>)}</tr>;
             })}
-            <tr><th>Mobilization (round trip)</th>{results.map((r) => <td key={r.m.id}>{money(r.costs.mobCost)}</td>)}</tr>
+            <tr><th>Moving the fleet (round trip)</th>{results.map((r) => <td key={r.m.id}>{money(r.mobCost)} · {r.loads} load{r.loads > 1 ? 's' : ''}</td>)}</tr>
           </tbody>
         </table>
       </div>
@@ -375,6 +383,7 @@ export function Assumptions({ results, s, family }: P) {
     ['Interest, insurance, tax', `${Math.round(s.interestPct * 100)}%/yr of average investment`],
     ['Job efficiency / operator', `${s.jobMinPerHour}-minute hour, ${s.skill} operator`],
     ['Ground conditions', s.ground],
+    ['Fleets', `${Math.round(s.availability * 100)}% availability per machine; ${Math.round(s.crowdLossPct * 100)}% production lost per extra machine on the same job; ${money(s.supportPerMachine)}/h support & servicing per machine; ${s.hoursPerDay}-hour days`],
   ];
   return (
     <>
@@ -385,14 +394,14 @@ export function Assumptions({ results, s, family }: P) {
       </div>
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th>Per machine</th>{results.map((r) => <th key={r.m.id}>{r.m.name}</th>)}</tr></thead>
+          <thead><tr><th>Per machine</th>{results.map((r) => <th key={r.m.id}>{r.m.name}{r.qty > 1 ? ` (×${r.qty})` : ''}</th>)}</tr></thead>
           <tbody>
             <tr><th>Purchase price</th>{results.map((r) => <td key={r.m.id}>{money(r.costs.price)}</td>)}</tr>
             <tr><th>Residual value</th>{results.map((r) => <td key={r.m.id}>{Math.round(r.costs.residualPct * 100)}%</td>)}</tr>
             <tr><th>Repair reserve (share of price)</th>{results.map((r) => <td key={r.m.id}>{Math.round(r.costs.repairPct * 100)}%</td>)}</tr>
             <tr><th>{family === 'hauler' ? 'Tires' : 'Undercarriage'} at moderate conditions</th>{results.map((r) => <td key={r.m.id}>{money2(r.costs.ucTiresPerHour)}/h</td>)}</tr>
             <tr><th>Wear items</th>{results.map((r) => <td key={r.m.id}>{money2(r.costs.wearPerHour)}/h</td>)}</tr>
-            <tr><th>Mobilization</th>{results.map((r) => <td key={r.m.id}>{money(r.costs.mobCost)}</td>)}</tr>
+            <tr><th>Mobilization, each</th>{results.map((r) => <td key={r.m.id}>{money(r.costs.mobCost)}</td>)}</tr>
           </tbody>
         </table>
       </div>

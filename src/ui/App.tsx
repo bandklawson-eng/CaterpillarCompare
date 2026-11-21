@@ -4,6 +4,7 @@ import { family, preparedFor, printing, results, settings } from '../state';
 import { CostEditor, Conditions, FamilyTabs, ModelPicker } from './Sidebar';
 import { Assumptions, BreakEven, Costs, Fuel, Glance, Productivity, Section, SpecsTable } from './sections';
 import { Report } from './Report';
+import { fleetName } from './fleet';
 
 const NAV = [
   ['glance', 'At a glance'], ['specs', 'Specs'], ['productivity', 'Productivity'], ['fuel', 'Fuel'],
@@ -57,7 +58,7 @@ export function App() {
             ) : (
               <>
                 <nav class="subnav">{NAV.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}</nav>
-                <Section id="glance" title={`At a glance: ${rs.map((r) => r.m.name).join(' vs ')}`}>
+                <Section id="glance" title={`At a glance: ${rs.map(fleetName).join(' vs ')}`}>
                   <Glance {...p} />
                 </Section>
                 <Section id="specs" title="Specifications"><SpecsTable {...p} /></Section>

@@ -72,9 +72,14 @@ details.panel > summary::-webkit-details-marker { display: none; }
 .count { color: var(--ink-3); font-weight: 500; font-size: 0.85rem; }
 .link { border: 0; background: none; color: var(--blue); padding: 0; font-size: 0.85rem; }
 .hint { color: var(--ink-3); font-size: 0.82rem; }
+.field-group { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); font-weight: 700; margin-top: 6px; border-top: 1px solid var(--rule); padding-top: 8px; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; min-height: 30px; align-items: center; }
-.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule); background: var(--panel); border-radius: 999px; padding: 4px 10px; font-weight: 600; font-size: 0.88rem; }
+.chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--rule); background: var(--panel); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 0.88rem; }
+.chip b { padding: 0 2px; }
+.chip-step, .chip-x { border: 0; background: #fff; width: 22px; height: 22px; border-radius: 50%; line-height: 1; font-weight: 700; color: var(--ink-2); padding: 0; }
+.chip-step:disabled { opacity: 0.35; cursor: default; }
+.chip-x { background: transparent; color: var(--ink-3); }
 .chip i, .pname i, .dot, .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
 .chip span { color: var(--ink-3); }
 .picker-tools { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
@@ -126,6 +131,27 @@ details.panel > summary::-webkit-details-marker { display: none; }
 .m-rel { font-size: 0.8rem; color: var(--ink-2); align-self: end; }
 .metric.strong .m-value { font-size: 1.25rem; }
 
+.fleet-icons { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 2px 4px; min-height: 40px; }
+.fleet-icons img { height: auto; display: block; }
+.fleet-icons .more { font-weight: 800; color: var(--ink-2); font-size: 0.9rem; align-self: center; }
+.qty { display: flex; align-items: center; gap: 4px; margin: 2px 0 2px; }
+.qty button { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--rule); background: #fff; font-weight: 800; font-size: 1rem; padding: 0; }
+.qty button:disabled { opacity: 0.35; cursor: default; }
+.qty input { width: 44px; height: 28px; text-align: center; border: 1px solid var(--rule); border-radius: 7px; font-weight: 700; }
+.qty span { color: var(--ink-3); font-size: 0.8rem; margin-left: 2px; }
+.fleet-box { margin-top: 16px; background: #fffbea; border: 1px solid #f2dc8a; border-left: 4px solid #fec203; border-radius: 8px; padding: 14px 16px; }
+.fleet-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.fleet-head h3 { font-size: 1.05rem; }
+.fleet-inputs { display: flex; gap: 14px; font-size: 0.85rem; color: var(--ink-2); flex-wrap: wrap; }
+.fleet-inputs input { width: 96px; padding: 4px 7px; border: 1px solid var(--rule); border-radius: 7px; text-align: right; margin: 0 4px; }
+.fleet-inputs label:last-child input { width: 52px; }
+.fleet-table { background: #fff; }
+.fleet-table tbody th small { display: block; font-weight: 400; color: var(--ink-3); font-size: 0.75rem; }
+.fleet-table tr.icons-row td { vertical-align: bottom; }
+.fleet-table tbody tr:nth-child(even) { background: #fcfaf2; }
+.small-btn { border: 1px solid var(--rule); background: #fff; border-radius: 7px; padding: 4px 10px; font-size: 0.8rem; font-weight: 600; }
+.small-btn:hover { border-color: var(--ink-3); }
+.verdict { margin: 6px 0 0; padding-left: 18px; color: var(--ink); line-height: 1.5; font-size: 0.92rem; }
 .breakeven-box { margin-top: 16px; background: #fff7f2; border: 1px solid #f3cdb8; border-left: 4px solid var(--accent); border-radius: 8px; padding: 14px 16px; }
 .breakeven-box h3 { font-size: 1.05rem; margin-bottom: 10px; }
 .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -199,7 +225,10 @@ table.data td.best { font-weight: 800; color: var(--good); }
   .report .table-wrap { overflow: visible; }
   .report .tooltip { display: none; }
   .report a { color: var(--ink-2); text-decoration: none; }
-  .report .ui-only { display: none; }
+  .report .ui-only { display: none !important; }
+  .report .fleet-box { padding: 10px 12px; margin-top: 10px; break-inside: avoid; }
+  .report .fleet-table { font-size: 0.8rem; }
+  .report .fleet-table th, .report .fleet-table td { padding: 3px 8px; }
   .report .glance-cards { gap: 6px; }
   .report .gcard { padding: 7px 8px; gap: 3px; }
   .report .gcard-head b { font-size: 1rem; }

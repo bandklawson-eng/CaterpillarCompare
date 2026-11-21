@@ -6,7 +6,7 @@ import { Assumptions, BreakEven, Costs, Fuel, Glance, Productivity, SpecsTable }
 
 export function Report(props: { results: Result[]; s: Settings; family: Family; preparedFor: string }) {
   const p = { results: props.results, s: props.s, family: props.family };
-  const names = props.results.map((r) => `Cat ${r.m.name}`).join(' vs ');
+  const names = props.results.map((r) => (r.qty > 1 ? `${r.qty} × Cat ${r.m.name}` : `Cat ${r.m.name}`)).join(' vs ');
   const date = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   return (
     <div class="report">

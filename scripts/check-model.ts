@@ -1,6 +1,6 @@
 // Sanity checks for the database and the model. Run with: npm test
 import { MACHINES, byId, sizeKey } from '../src/data/index';
-import { DEFAULT_SETTINGS, defaultCosts, evaluate, sizeSteps, type Result } from '../src/engine/model';
+import { DEFAULT_SETTINGS, defaultCosts, evaluate, fleetRisk, qtyToMatch, sizeSteps, type Result } from '../src/engine/model';
 
 let fail = 0;
 const ok = (cond: boolean, msg: string) => { if (!cond) { fail++; console.error('FAIL', msg); } };
@@ -37,6 +37,20 @@ const d8 = evaluate(byId('d8')!, DEFAULT_SETTINGS, defaultCosts(byId('d8')!));
 const d10 = evaluate(byId('d10')!, DEFAULT_SETTINGS, defaultCosts(byId('d10')!));
 ok(Math.abs(d10.prod / d8.prod - 2.14) < 0.05, `D10/D8 production ratio ${(d10.prod / d8.prod).toFixed(2)}`);
 ok(d10.unitCost < d8.unitCost, 'D10 cheaper per yd3 than D8');
+
+// Fleets: 2 x D6 vs 1 x D8
+const d6 = byId('d6')!;
+const two = evaluate(d6, DEFAULT_SETTINGS, defaultCosts(d6), 2);
+const one = evaluate(d6, DEFAULT_SETTINGS, defaultCosts(d6), 1);
+ok(Math.abs(two.costH - 2 * one.costH) < 1e-6, 'fleet cost/h scales with quantity');
+ok(two.prod < 2 * one.prod && two.prod > 1.9 * one.prod, 'crowding loss applied');
+ok(two.mobCost === 2 * one.mobCost, 'fleet mobilization');
+const rk = fleetRisk(two, DEFAULT_SETTINGS, 'dozer');
+ok(Math.abs(rk.allDown - 0.01) < 1e-9, 'two machines at 90% availability: 1% both down');
+console.log(`2 x D6: ${two.prod.toFixed(0)} yd3/h, $${two.unitCost.toFixed(2)}/yd3, ${rk.daysToFinish.toFixed(1)} days, job $${rk.jobCost.toFixed(0)}`);
+const d8r = fleetRisk(d8, DEFAULT_SETTINGS, 'dozer');
+console.log(`1 x D8: ${d8.prod.toFixed(0)} yd3/h, $${d8.unitCost.toFixed(2)}/yd3, ${d8r.daysToFinish.toFixed(1)} days, job $${d8r.jobCost.toFixed(0)}`);
+console.log(`D6s to match a D8: ${qtyToMatch(d6, DEFAULT_SETTINGS, d8.prod)}`);
 
 if (fail) { console.error(`${fail} check(s) failed`); process.exit(1); }
 console.log('All checks passed');

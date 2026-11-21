@@ -1,6 +1,6 @@
 import { computed, effect, signal } from '@preact/signals';
 import { byId, MACHINES, sizeKey, type Family, type Machine } from './data';
-import { DEFAULT_SETTINGS, defaultCosts, evaluate, type CostInputs, type Result, type Settings } from './engine/model';
+import { DEFAULT_SETTINGS, defaultCosts, evaluate, MAX_QTY, qtyToMatch, type CostInputs, type Result, type Settings } from './engine/model';
 
 const KEY = 'cat-size-compare-v1';
 export const MAX_MODELS = 4;
@@ -10,6 +10,7 @@ interface Saved {
   selection: Record<Family, string[]>;
   settings: Settings;
   overrides: Record<string, Partial<CostInputs>>;
+  qty: Record<string, number>;
   preparedFor: string;
   showPrevious: boolean;
 }
@@ -17,9 +18,10 @@ interface Saved {
 function load(): Saved {
   const fallback: Saved = {
     family: 'dozer',
-    selection: { dozer: ['d6', 'd8', 'd10'], hauler: ['745', '770g', '775g'], excavator: ['336', '352', '374'] },
+    selection: { dozer: ['d6', 'd8'], hauler: ['745', '777g'], excavator: ['336', '374'] },
     settings: { ...DEFAULT_SETTINGS },
     overrides: {},
+    qty: { d6: 2, '745': 2, '336': 2 },
     preparedFor: '',
     showPrevious: true,
   };
@@ -31,8 +33,10 @@ function load(): Saved {
       ...fallback,
       ...s,
       selection: { ...fallback.selection, ...(s.selection ?? {}) },
-      settings: { ...DEFAULT_SETTINGS, ...(s.settings ?? {}) },
+      settings: { ...DEFAULT_SETTINGS, ...(s.settings ?? {}),
+        jobVolume: { ...DEFAULT_SETTINGS.jobVolume, ...(s.settings?.jobVolume ?? {}) } },
       overrides: s.overrides ?? {},
+      qty: s.qty ?? {},
     };
   } catch {
     return fallback;
@@ -44,6 +48,7 @@ export const family = signal<Family>(saved.family);
 export const selection = signal<Record<Family, string[]>>(saved.selection);
 export const settings = signal<Settings>(saved.settings);
 export const overrides = signal<Record<string, Partial<CostInputs>>>(saved.overrides);
+export const qty = signal<Record<string, number>>(saved.qty);
 export const preparedFor = signal(saved.preparedFor);
 export const showPrevious = signal(saved.showPrevious);
 export const printing = signal(false);
@@ -54,6 +59,7 @@ effect(() => {
     selection: selection.value,
     settings: settings.value,
     overrides: overrides.value,
+    qty: qty.value,
     preparedFor: preparedFor.value,
     showPrevious: showPrevious.value,
   };
@@ -82,6 +88,25 @@ export function resetOverrides(id?: string) {
   overrides.value = next;
 }
 
+export const qtyOf = (id: string) => qty.value[id] ?? 1;
+
+export function setQty(id: string, n: number) {
+  qty.value = { ...qty.value, [id]: Math.max(1, Math.min(MAX_QTY, Math.round(n))) };
+}
+
+/** Set every other fleet's size so it produces at least as much as the given fleet. */
+export function matchFleets(toId: string) {
+  const target = results.value.find((r) => r.m.id === toId);
+  if (!target) return;
+  const next = { ...qty.value };
+  for (const r of results.value) if (r.m.id !== toId) next[r.m.id] = qtyToMatch(r.m, settings.value, target.prod);
+  qty.value = next;
+}
+
+export function setJobVolume(v: number) {
+  settings.value = { ...settings.value, jobVolume: { ...settings.value.jobVolume, [family.value]: Math.max(1, v) } };
+}
+
 export function toggleModel(id: string) {
   const f = family.value;
   const cur = selection.value[f];
@@ -107,7 +132,7 @@ export const selected = computed<Machine[]>(() =>
 export const results = computed<Result[]>(() => {
   const s = settings.value;
   overrides.value; // dependency
-  return selected.value.map((m) => evaluate(m, s, costsFor(m)));
+  return selected.value.map((m) => evaluate(m, s, costsFor(m), qtyOf(m.id)));
 });
 
 export const available = computed(() => MACHINES[family.value]);

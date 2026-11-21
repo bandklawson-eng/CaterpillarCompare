@@ -16,13 +16,16 @@ production study.
 1. **Pick a line** in the top bar: Dozers, Haulers or Excavators. Only one line is compared at a time.
 2. **Pick up to four models.** The list covers 2016 to today; untick *Include previous models* to
    show only current machines. Models marked **verify** have some specs estimated (see below).
-3. **Set the job conditions**: push distance and material for dozers, digging difficulty and swing
+3. **Set fleet sizes** with the − and + buttons on each model (in the side panel or on the At a glance
+   cards) to answer "should I buy 2 small dozers or 1 big one?" or "10 small trucks or 5 big ones?".
+   Every figure then covers the whole fleet.
+4. **Set the job conditions**: push distance and material for dozers, digging difficulty and swing
    angle for excavators, haul distance, grade and rolling resistance for haulers, plus fuel load,
    ground conditions and operator skill.
-4. **Prices & costs**: type a dealer quote over any price, mobilization cost, residual value or
+5. **Prices & costs**: type a dealer quote over any price, mobilization cost, residual value or
    wear rate. Edited fields turn orange; *Reset to defaults* undoes them. Settings are saved in the
    browser on that device.
-5. **Create PDF**: type the customer's name in *Prepared for*, press **Create PDF**, then choose
+6. **Create PDF**: type the customer's name in *Prepared for*, press **Create PDF**, then choose
    **Save as PDF** in the print dialog. On iPad or iPhone, use *Print*, then share the preview as a PDF.
 
 ### What the sections mean
@@ -31,6 +34,12 @@ production study.
   hour and cost per yd³ (or ton), compared with the smallest model. Below that, **When to move up a
   size** gives the break-even job size for each step up, a strip showing which model is cheapest at
   each job size, and a one-line bottom line.
+- **Several smaller machines or fewer big ones?**: the fleet scorecard. For each fleet it shows the
+  operators needed, money tied up, production, days to finish the job (job size and hours per day
+  are editable), total job cost including moving, lowboy loads, fuel, repair and support costs, how
+  much capacity is left if one machine breaks down, and the chance the whole fleet is stopped at
+  once. Green marks the best fleet on each line, a short list says who wins what, and **Match this
+  output** resizes the other fleets to produce at least as much as the one you click.
 - **Specifications**: published specs side by side, with a data-status row.
 - **Productivity / Fuel / Costs**: charts across push distance, swing angle or haul distance, with
   tables underneath and the method used.
@@ -56,6 +65,13 @@ All logic lives in `src/engine/model.ts`.
 - **Costs**: depreciation, interest/insurance/tax, fuel and DEF, lube, a repair reserve (share of
   price over the ownership period), undercarriage or tires (Handbook method, scaled by ground
   conditions), wear items and the operator.
+- **Fleets**: a fleet of N machines costs N times as much per hour, moves N times (lowboy loads too)
+  and needs N operators. Production is N × one machine, less a crowding loss per extra machine
+  (default 3%) for machines getting in each other's way or waiting at the loader. Each machine also
+  carries a fixed support & servicing cost (default $10/h for service-truck visits, fueling, PM
+  labor and admin), so many small machines pay more overhead than a few big ones. Breakdown risk
+  uses each machine's availability (default 90%): with N machines the chance all are down at once is
+  (1 − availability)^N. Days to finish = job size ÷ (fleet production × availability) ÷ hours per day.
 - **Break-even**: all-in cost per unit = (mobilization + cost per unit × job size) ÷ job size. The
   step from model A to bigger model B pays off above (mobilization B − mobilization A) ÷
   (cost per unit A − cost per unit B).

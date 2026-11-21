@@ -36,6 +36,12 @@ export interface Settings {
   haulGradePct: number; // + uphill when loaded
   rollingPct: number;
   densityTonPerYd3: number;
+  // fleets
+  availability: number; // mechanical availability of each machine, fraction
+  crowdLossPct: number; // production lost per extra machine working the same job, fraction
+  supportPerMachine: number; // $/h per machine: service-truck visits, fueling, PM labor, admin
+  hoursPerDay: number;
+  jobVolume: Record<Family, number>;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -62,6 +68,11 @@ export const DEFAULT_SETTINGS: Settings = {
   haulGradePct: 5,
   rollingPct: 3,
   densityTonPerYd3: 1.5,
+  availability: 0.9,
+  crowdLossPct: 0.03,
+  supportPerMachine: 10,
+  hoursPerDay: 10,
+  jobVolume: { dozer: 100_000, excavator: 150_000, hauler: 1_000_000 },
 };
 
 /** Per-machine money assumptions the salesperson can override. */
@@ -247,11 +258,12 @@ export interface CostBreakdown {
   'Repair reserve': number;
   'Undercarriage / tires': number;
   'Wear items': number;
+  'Support & servicing': number;
   Operator: number;
 }
 export const COST_KEYS = [
   'Ownership (depreciation)', 'Interest, insurance, tax', 'Fuel + DEF', 'Lube, filters, grease',
-  'Repair reserve', 'Undercarriage / tires', 'Wear items', 'Operator',
+  'Repair reserve', 'Undercarriage / tires', 'Wear items', 'Support & servicing', 'Operator',
 ] as const;
 
 export function hourlyCost(m: Machine, s: Settings, c: CostInputs): CostBreakdown {
@@ -266,18 +278,40 @@ export function hourlyCost(m: Machine, s: Settings, c: CostInputs): CostBreakdow
     'Repair reserve': (c.price * c.repairPct) / lifeHours,
     'Undercarriage / tires': c.ucTiresPerHour * GROUND_MULT[s.ground],
     'Wear items': c.wearPerHour * GROUND_MULT[s.ground],
+    'Support & servicing': s.supportPerMachine,
     Operator: s.operatorWage,
   };
 }
 
 export const totalCost = (b: CostBreakdown) => COST_KEYS.reduce((a, k) => a + b[k], 0);
 export const repairTotal = (b: CostBreakdown) =>
-  b['Repair reserve'] + b['Undercarriage / tires'] + b['Wear items'] + b['Lube, filters, grease'];
+  b['Repair reserve'] + b['Undercarriage / tires'] + b['Wear items'] + b['Lube, filters, grease'] + b['Support & servicing'];
+
+// ---------------------------------------------------------------- fleets
+export const MAX_QTY = 20;
+
+/** Production share kept when `qty` machines work the same job (interference, waiting at the loader). */
+export function crowdFactor(qty: number, s: Settings): number {
+  return Math.max(0.6, 1 - s.crowdLossPct * (qty - 1));
+}
+
+/** Lowboy loads needed to move one machine. */
+export function loadsPerMachine(m: Machine): number {
+  if (m.family === 'hauler' && m.kind === 'articulated') return 1; // usually driven or one load
+  const lb = shipWeightLb(m);
+  if (lb <= 80000) return 1;
+  if (lb <= 160000) return 2;
+  return Math.ceil(lb / 70000);
+}
 
 // ---------------------------------------------------------------- comparison
+/** A fleet of `qty` identical machines. Every money, fuel and production figure is for the whole fleet. */
 export interface Result {
   m: Machine;
+  qty: number;
   costs: CostInputs;
+  /** One machine on its own (no crowding). */
+  single: { prod: number; fuelH: number; costH: number; breakdown: CostBreakdown };
   prod: number;
   fuelH: number;
   fuelEstimated: boolean;
@@ -285,19 +319,67 @@ export interface Result {
   costH: number;
   unitCost: number;
   fuelPerUnit: number;
+  mobCost: number;
+  loads: number;
+  capital: number;
 }
 
-export function evaluate(m: Machine, s: Settings, costs: CostInputs): Result {
-  const prod = production(m, s);
-  const fuelH = fuelPerHour(m, s);
-  const breakdown = hourlyCost(m, s, costs);
+export function evaluate(m: Machine, s: Settings, costs: CostInputs, qty = 1): Result {
+  const one = production(m, s);
+  const fuel1 = fuelPerHour(m, s);
+  const b1 = hourlyCost(m, s, costs);
+  const breakdown = Object.fromEntries(COST_KEYS.map((k) => [k, b1[k] * qty])) as unknown as CostBreakdown;
+  const prod = one * qty * crowdFactor(qty, s);
+  const fuelH = fuel1 * qty;
   const costH = totalCost(breakdown);
-  return { m, costs, prod, fuelH, fuelEstimated: fuelBurn(m).estimated, breakdown, costH,
-    unitCost: costH / prod, fuelPerUnit: fuelH / prod };
+  return {
+    m, qty, costs,
+    single: { prod: one, fuelH: fuel1, costH: totalCost(b1), breakdown: b1 },
+    prod, fuelH, fuelEstimated: fuelBurn(m).estimated, breakdown, costH,
+    unitCost: costH / prod, fuelPerUnit: fuelH / prod,
+    mobCost: costs.mobCost * qty, loads: loadsPerMachine(m) * qty, capital: costs.price * qty,
+  };
+}
+
+/** Fleet production at a different value of the sweep variable. */
+export function fleetProduction(r: Result, s: Settings, sweep?: number): number {
+  return production(r.m, s, sweep) * r.qty * crowdFactor(r.qty, s);
+}
+
+/** Smallest quantity of this model whose fleet production reaches `target`. */
+export function qtyToMatch(m: Machine, s: Settings, target: number): number {
+  const one = production(m, s);
+  for (let q = 1; q <= MAX_QTY; q++) if (one * q * crowdFactor(q, s) >= target * 0.999) return q;
+  return MAX_QTY;
+}
+
+export interface FleetRisk {
+  /** Expected production allowing for breakdowns. */
+  expectedProd: number;
+  /** Share of fleet capacity still working when one machine is down. */
+  capacityOneDown: number;
+  /** Chance that every machine is down at the same time. */
+  allDown: number;
+  daysToFinish: number;
+  jobCost: number;
+}
+
+export function fleetRisk(r: Result, s: Settings, family: Family): FleetRisk {
+  const a = s.availability;
+  const expectedProd = r.prod * a;
+  const vol = s.jobVolume[family];
+  const capacityOneDown = r.qty <= 1 ? 0 : ((r.qty - 1) * crowdFactor(r.qty - 1, s)) / (r.qty * crowdFactor(r.qty, s));
+  return {
+    expectedProd,
+    capacityOneDown,
+    allDown: Math.pow(1 - a, r.qty),
+    daysToFinish: vol / expectedProd / s.hoursPerDay,
+    jobCost: r.mobCost + r.unitCost * vol,
+  };
 }
 
 /** All-in cost per unit for a job of `volume` units, including one round-trip mobilization. */
-export const allInUnitCost = (r: Result, volume: number) => (r.costs.mobCost + r.unitCost * volume) / volume;
+export const allInUnitCost = (r: Result, volume: number) => (r.mobCost + r.unitCost * volume) / volume;
 
 export interface Step {
   from: Result;
@@ -312,8 +394,8 @@ export function sizeSteps(sorted: Result[]): Step[] {
   for (let i = 0; i + 1 < sorted.length; i++) {
     const a = sorted[i], b = sorted[i + 1];
     let volume: number | null;
-    if (b.unitCost >= a.unitCost) volume = b.costs.mobCost <= a.costs.mobCost && b.unitCost === a.unitCost ? 0 : null;
-    else volume = Math.max(0, (b.costs.mobCost - a.costs.mobCost) / (a.unitCost - b.unitCost));
+    if (b.unitCost >= a.unitCost) volume = b.mobCost <= a.mobCost && b.unitCost === a.unitCost ? 0 : null;
+    else volume = Math.max(0, (b.mobCost - a.mobCost) / (a.unitCost - b.unitCost));
     out.push({ from: a, to: b, volume });
   }
   return out;
@@ -335,7 +417,7 @@ export function cheapestBands(results: Result[], lo: number, hi: number): Band[]
       // Snap the boundary to the exact job size where the two all-in costs cross.
       let from = v;
       if (last && last.r.unitCost !== best.unitCost) {
-        const x = (best.costs.mobCost - last.r.costs.mobCost) / (last.r.unitCost - best.unitCost);
+        const x = (best.mobCost - last.r.mobCost) / (last.r.unitCost - best.unitCost);
         if (x > 0 && Number.isFinite(x)) from = x;
       }
       bands.push({ r: best, from, to: v });

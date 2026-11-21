@@ -2,9 +2,10 @@ import { useState } from 'preact/hooks';
 import { FAMILY_ART, FAMILY_LABEL, isCurrent, sizeClass, sizeKey, yearsLabel, type Family, type Machine } from '../data';
 import { defaultCosts, type CostInputs, type Settings } from '../engine/model';
 import {
-  available, clearSelection, costsFor, family, MAX_MODELS, overrides, resetOverrides, selected, selection, setOverride,
-  setSetting, settings, showPrevious, toggleModel,
+  available, clearSelection, costsFor, family, MAX_MODELS, overrides, qtyOf, resetOverrides, selected, selection, setOverride,
+  setQty, setSetting, settings, showPrevious, toggleModel,
 } from '../state';
+import { MAX_QTY } from '../engine/model';
 import { colorOf, money } from './format';
 
 export function FamilyTabs() {
@@ -44,12 +45,20 @@ export function ModelPicker() {
         {sel.length > 0 && <button class="link" onClick={clearSelection}>Clear</button>}
       </div>
       <div class="chips">
-        {selected.value.map((m) => (
-          <button key={m.id} class="chip" onClick={() => toggleModel(m.id)} title="Remove">
-            <i style={{ background: colorOf(m.id) }} />{m.name}<span aria-hidden="true">×</span>
-          </button>
-        ))}
+        {selected.value.map((m) => {
+          const q = qtyOf(m.id);
+          return (
+            <span key={m.id} class="chip">
+              <i style={{ background: colorOf(m.id) }} />
+              <button class="chip-step" onClick={() => setQty(m.id, q - 1)} disabled={q <= 1} aria-label={`One fewer ${m.name}`}>−</button>
+              <b>{q > 1 ? `${q} × ` : ''}{m.name}</b>
+              <button class="chip-step" onClick={() => setQty(m.id, q + 1)} disabled={q >= MAX_QTY} aria-label={`One more ${m.name}`}>+</button>
+              <button class="chip-x" onClick={() => toggleModel(m.id)} aria-label={`Remove ${m.name}`}>×</button>
+            </span>
+          );
+        })}
         {!sel.length && <span class="hint">Pick up to {MAX_MODELS} models to compare.</span>}
+        {sel.length > 0 && <span class="hint">Use − and + to compare fleets, e.g. 2 small vs 1 big.</span>}
       </div>
       <div class="picker-tools">
         <input type="search" placeholder="Search models" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
@@ -144,6 +153,10 @@ export function Conditions() {
         <Sel label="Ground (wear)" k="ground" options={[['low', 'Low impact / abrasion'], ['moderate', 'Moderate'], ['severe', 'Severe (rock)']]} />
         <Sel label="Operator" k="skill" options={[['excellent', 'Excellent'], ['average', 'Average'], ['poor', 'Below average']]} />
         <Num label="Productive minutes per hour" k="jobMinPerHour" step={5} min={30} max={60} suffix="min" />
+        <div class="field-group">Fleets</div>
+        <Num label="Availability per machine" k="availability" step={1} min={50} max={100} scale={100} suffix="%" />
+        <Num label="Production lost per extra machine" k="crowdLossPct" step={0.5} min={0} max={10} scale={100} suffix="%" />
+        <Num label="Working hours per day" k="hoursPerDay" step={1} min={1} max={24} suffix="h" />
       </div>
     </details>
   );
@@ -171,6 +184,7 @@ export function CostEditor() {
         <Num label="Hours per year" k="annualHours" step={100} suffix="h" />
         <Num label="Ownership period" k="ownYears" step={1} min={1} max={15} suffix="yr" />
         <Num label="Interest, insurance, tax" k="interestPct" step={0.5} scale={100} suffix="%/yr" />
+        <Num label="Support & servicing per machine" k="supportPerMachine" step={1} suffix="$/h" />
       </div>
       {ms.map((m) => {
         const c = costsFor(m);
